@@ -1,6 +1,6 @@
 {-
     #_ balance:Coins allowance:(HashmapE 256 Coins) = User;
-    #_ balances:(HashmapE 256 User) total_supply:Coins = Storage;
+    #_ balances:(HashmapE 256 User) total_supply:Coins name:^Cell symbol:^Cell decimals:uint8 = Storage;
 -}
 
 #include "imports/stdlib.fc";
@@ -17,17 +17,26 @@ const int error::not_enough_allowance = 703;
 
 global cell users;
 global int total_supply;
+global cell name;
+global cell symbol;
+global int decimals;
 
 () load_data() impure {
     slice ds = get_data().begin_parse();
     users = ds~load_dict();
     total_supply = ds~load_coins();
+    name = ds~load_ref();
+    symbol = ds~load_ref();
+    decimals = ds~load_uint(8);
 }
 
 () save_data() impure {
     set_data(begin_cell()
         .store_dict(users)
         .store_coins(total_supply)
+        .store_ref(name)
+        .store_ref(symbol)
+        .store_uint(decimals, 8)
     .end_cell());
 }
 
@@ -144,4 +153,27 @@ global int total_supply;
     }
 
     save_data();
+}
+
+(slice, slice, int, int) get_token_data() method_id {
+    load_data();
+    return (name.begin_parse(), symbol.begin_parse(), decimals, total_supply);
+}
+
+(int) get_balance_of(slice address) method_id {
+    load_data();
+    (int workchain, int account_id) = parse_std_addr(address);
+    throw_unless(error::wrong_workchain, workchain == 0);
+    (int balance, cell allowances) = get_user(account_id);
+    return balance;
+}
+
+(int) get_allowance_of(slice owner, slice spender) method_id {
+    load_data();
+    (int workchain, int account_id) = parse_std_addr(owner);
+    throw_unless(error::wrong_workchain, workchain == 0);
+    (int spender_workchain, int spender_account_id) = parse_std_addr(spender);
+    throw_unless(error::wrong_workchain, spender_workchain == 0);
+    (int balance, cell allowances) = get_user(account_id);
+    return get_allowance(allowances, spender_account_id);
 }
