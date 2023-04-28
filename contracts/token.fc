@@ -5,9 +5,11 @@
 
 #include "imports/stdlib.fc";
 
-const int op::transfer = 0xb8e6413f;
-const int op::transfer_from = 0xd6385563;
+const int op::transfer = 0x38e6413f;
+const int op::transfer_from = 0x56385563;
 const int op::approve = 0x14b4e83e;
+const int op::transfer_notification = 0x8e77c97a;
+const int op::approval_notification = 0x8ed3c35a;
 
 const int error::wrong_workchain = 701;
 const int error::not_enough_balance = 702;
@@ -62,6 +64,7 @@ global int total_supply;
     load_data();
 
     int op = in_msg_body~load_uint(32);
+    int query_id = in_msg_body~load_uint(64);
     
     if (op == op::transfer) {
         int recipient = in_msg_body~load_uint(256);
@@ -73,6 +76,18 @@ global int total_supply;
         (int recipient_balance, cell recipient_allowances) = get_user(recipient);
         set_user(sender, balance - amount, allowances);
         set_user(recipient, recipient_balance + amount, recipient_allowances);
+
+        send_raw_message(begin_cell()
+            .store_uint(0x10, 6)
+            .store_uint(0x400, 11)
+            .store_uint(recipient, 256)
+            .store_coins(1000000)
+            .store_uint(0, 107)
+            .store_uint(op::transfer_notification, 32)
+            .store_uint(query_id, 64)
+            .store_uint(sender, 256)
+            .store_coins(amount)
+        .end_cell(), 1);
     }
     
     elseif (op == op::transfer_from) {
@@ -89,6 +104,18 @@ global int total_supply;
         allowances.udict_set(256, sender, begin_cell().store_coins(allowance - amount).end_cell().begin_parse());
         set_user(from, balance - amount, allowances);
         set_user(recipient, recipient_balance + amount, recipient_allowances);
+
+        send_raw_message(begin_cell()
+            .store_uint(0x10, 6)
+            .store_uint(0x400, 11)
+            .store_uint(recipient, 256)
+            .store_coins(1000000)
+            .store_uint(0, 107)
+            .store_uint(op::transfer_notification, 32)
+            .store_uint(query_id, 64)
+            .store_uint(from, 256)
+            .store_coins(amount)
+        .end_cell(), 1);
     }
     
     elseif (op == op::approve) {
@@ -98,6 +125,18 @@ global int total_supply;
 
         allowances.udict_set(256, spender, begin_cell().store_coins(amount).end_cell().begin_parse());
         set_user(sender, balance, allowances);
+
+        send_raw_message(begin_cell()
+            .store_uint(0x10, 6)
+            .store_uint(0x400, 11)
+            .store_uint(spender, 256)
+            .store_coins(1000000)
+            .store_uint(0, 107)
+            .store_uint(op::approval_notification, 32)
+            .store_uint(query_id, 64)
+            .store_uint(sender, 256)
+            .store_coins(amount)
+        .end_cell(), 1);
     }
 
     else {
