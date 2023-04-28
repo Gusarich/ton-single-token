@@ -15,10 +15,12 @@ describe('Token', () => {
     let blockchain: Blockchain;
     let token: SandboxContract<Token>;
     let deployer: SandboxContract<TreasuryContract>;
+    let wallet: SandboxContract<TreasuryContract>;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
         deployer = await blockchain.treasury('deployer');
+        wallet = await blockchain.treasury('wallet');
 
         token = blockchain.openContract(
             Token.createFromConfig(
@@ -128,7 +130,6 @@ describe('Token', () => {
 
     it('should transfer from', async () => {
         await token.sendMint(deployer.getSender(), deployer.address, 100n);
-        const wallet = await blockchain.treasury('wallet');
         await token.sendApprove(deployer.getSender(), wallet.address, 100n);
         const address = randomAddress();
 
@@ -148,5 +149,91 @@ describe('Token', () => {
         expect(await token.getAllowanceOf(deployer.address, wallet.address)).toEqual(0n);
         expect(await token.getBalanceOf(deployer.address)).toEqual(0n);
         expect(await token.getBalanceOf(address)).toEqual(100n);
+    });
+
+    it('should not mint if not owner', async () => {
+        const result = await token.sendMint(wallet.getSender(), wallet.address, 100n);
+
+        expect(result.transactions).not.toHaveTransaction({
+            from: token.address,
+            to: wallet.address,
+            value: 1000000n,
+        });
+
+        expect(await token.getBalanceOf(wallet.address)).toEqual(0n);
+        expect(await token.getTotalSupply()).toEqual(0n);
+    });
+
+    it('should not burn more than balance', async () => {
+        await token.sendMint(deployer.getSender(), deployer.address, 100n);
+
+        await token.sendBurn(deployer.getSender(), 70n);
+
+        const result = await token.sendBurn(deployer.getSender(), 31n);
+
+        expect(result.transactions).not.toHaveTransaction({
+            from: token.address,
+            to: Address.parseRaw('0:' + '0'.repeat(64)),
+            value: 1000000n,
+        });
+        expect(await token.getBalanceOf(deployer.address)).toEqual(30n);
+        expect(await token.getTotalSupply()).toEqual(30n);
+    });
+
+    it('should not transfer more than balance', async () => {
+        await token.sendMint(deployer.getSender(), deployer.address, 100n);
+
+        const address = randomAddress();
+
+        await token.sendTransfer(deployer.getSender(), address, 50n);
+
+        const result = await token.sendTransfer(deployer.getSender(), address, 51n);
+
+        expect(result.transactions).not.toHaveTransaction({
+            from: token.address,
+            to: address,
+            value: 1000000n,
+        });
+        expect(await token.getBalanceOf(deployer.address)).toEqual(50n);
+        expect(await token.getBalanceOf(address)).toEqual(50n);
+        expect(await token.getTotalSupply()).toEqual(100n);
+    });
+
+    it('should not transfer from more than balance', async () => {
+        await token.sendMint(deployer.getSender(), deployer.address, 100n);
+        await token.sendApprove(deployer.getSender(), wallet.address, 100n);
+        const address = randomAddress();
+
+        await token.sendTransferFrom(wallet.getSender(), deployer.address, address, 30n);
+
+        const result = await token.sendTransferFrom(wallet.getSender(), deployer.address, address, 71n);
+
+        expect(result.transactions).not.toHaveTransaction({
+            from: token.address,
+            to: address,
+            value: 1000000n,
+        });
+        expect(await token.getAllowanceOf(deployer.address, wallet.address)).toEqual(70n);
+        expect(await token.getBalanceOf(deployer.address)).toEqual(70n);
+        expect(await token.getBalanceOf(address)).toEqual(30n);
+    });
+
+    it('should not transfer from more than allowance', async () => {
+        await token.sendMint(deployer.getSender(), deployer.address, 100n);
+        await token.sendApprove(deployer.getSender(), wallet.address, 30n);
+        const address = randomAddress();
+
+        await token.sendTransferFrom(wallet.getSender(), deployer.address, address, 30n);
+
+        const result = await token.sendTransferFrom(wallet.getSender(), deployer.address, address, 1n);
+
+        expect(result.transactions).not.toHaveTransaction({
+            from: token.address,
+            to: address,
+            value: 1000000n,
+        });
+        expect(await token.getAllowanceOf(deployer.address, wallet.address)).toEqual(0n);
+        expect(await token.getBalanceOf(deployer.address)).toEqual(70n);
+        expect(await token.getBalanceOf(address)).toEqual(30n);
     });
 });
