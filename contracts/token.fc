@@ -78,6 +78,10 @@ global int admin;
 
     load_data();
 
+    if (in_msg_body.slice_bits() < 96) {
+        return ();
+    }
+
     int op = in_msg_body~load_uint(32);
     int query_id = in_msg_body~load_uint(64);
     
@@ -159,7 +163,6 @@ global int admin;
 
         int recipient = in_msg_body~load_uint(256);
         int amount = in_msg_body~load_coins();
-        (int balance, cell allowances) = get_user(sender);
 
         (int recipient_balance, cell recipient_allowances) = get_user(recipient);
         set_user(recipient, recipient_balance + amount, recipient_allowances);
