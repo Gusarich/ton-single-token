@@ -1,5 +1,5 @@
 {
-    "name": "ton-erc20",
+    "name": "ton-single-token",
     "license": "MIT",
     "scripts": {
         "test": "jest"
