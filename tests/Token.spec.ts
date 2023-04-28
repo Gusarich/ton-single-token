@@ -44,6 +44,12 @@ describe('Token', () => {
 
     it('should deploy', async () => {});
 
+    it('should return name, symbol and decimals correctly', async () => {
+        expect(await token.getName()).toEqual('MyCoolToken');
+        expect(await token.getSymbol()).toEqual('MCT');
+        expect(await token.getDecimals()).toEqual(9);
+    });
+
     it('should mint', async () => {
         const result = await token.sendMint(deployer.getSender(), deployer.address, 100n);
 

@@ -123,7 +123,7 @@ export class Token implements Contract {
     async getDecimals(provider: ContractProvider) {
         let stack = (await provider.get('get_token_data', [])).stack;
         stack.skip(2);
-        return stack.readBigNumber();
+        return stack.readNumber();
     }
 
     async getTotalSupply(provider: ContractProvider) {
