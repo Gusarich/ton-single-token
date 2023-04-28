@@ -9,6 +9,7 @@ const int op::transfer = 0x38e6413f;
 const int op::transfer_from = 0x56385563;
 const int op::approve = 0x14b4e83e;
 const int op::mint = 0x1bcc40ab;
+const int op::burn = 0x16e0fd30;
 const int op::transfer_notification = 0x8e77c97a;
 const int op::approval_notification = 0x8ed3c35a;
 
@@ -173,6 +174,28 @@ global int admin;
             .store_uint(op::transfer_notification, 32)
             .store_uint(query_id, 64)
             .store_uint(0, 256)
+            .store_coins(amount)
+        .end_cell(), 1);
+    }
+
+    elseif (op == op::burn) {
+        int amount = in_msg_body~load_coins();
+        (int balance, cell allowances) = get_user(sender);
+
+        throw_unless(error::not_enough_balance, balance >= amount);
+
+        set_user(sender, balance - amount, allowances);
+        total_supply -= amount;
+
+        send_raw_message(begin_cell()
+            .store_uint(0x10, 6)
+            .store_uint(0x400, 11)
+            .store_uint(0, 256)
+            .store_coins(1000000)
+            .store_uint(0, 107)
+            .store_uint(op::transfer_notification, 32)
+            .store_uint(query_id, 64)
+            .store_uint(sender, 256)
             .store_coins(amount)
         .end_cell(), 1);
     }
