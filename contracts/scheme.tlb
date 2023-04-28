@@ -1,0 +1,3 @@
+transfer#b8e6413f recipient:uint256 amount:Coins = InternalMsgBody;
+transfer_from#d6385563 from:uint256 recipient:uint256 amount:Coins = InternalMsgBody;
+approve#14b4e83e spender:uint256 amount:Coins = InternalMsgBody;

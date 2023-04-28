@@ -1,5 +1,108 @@
+{-
+    #_ balance:Coins allowance:(HashmapE 256 Coins) = User;
+    #_ balances:(HashmapE 256 User) total_supply:Coins = Storage;
+-}
+
 #include "imports/stdlib.fc";
 
-() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+const int op::transfer = 0xb8e6413f;
+const int op::transfer_from = 0xd6385563;
+const int op::approve = 0x14b4e83e;
 
+const int error::wrong_workchain = 701;
+const int error::not_enough_balance = 702;
+const int error::not_enough_allowance = 703;
+
+global cell users;
+global int total_supply;
+
+() load_data() impure {
+    slice ds = get_data().begin_parse();
+    users = ds~load_dict();
+    total_supply = ds~load_coins();
+}
+
+() save_data() impure {
+    set_data(begin_cell()
+        .store_dict(users)
+        .store_coins(total_supply)
+    .end_cell());
+}
+
+(int, cell) get_user(int address) {
+    (slice s, int f?) = users.udict_get?(256, address);
+    if (f?) {
+        return (s~load_coins(), s~load_dict());
+    }
+    return (0, new_dict());
+}
+
+() set_user(int address, int balance, cell allowances) impure {
+    users.udict_set(256, address, begin_cell()
+        .store_coins(balance)
+        .store_dict(allowances)
+    .end_cell().begin_parse());
+}
+
+(int) get_allowance(cell allowances, int address) {
+    (slice v, int f?) = allowances.udict_get?(256, address);
+    if (f?) {
+        return (v~load_coins());
+    }
+    return 0;
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    cs~skip_bits(4);
+    slice sender_full = cs~load_msg_addr();
+    (int workchain, int sender) = sender_full.parse_std_addr();
+    throw_unless(error::wrong_workchain, workchain == 0);
+
+    load_data();
+
+    int op = in_msg_body~load_uint(32);
+    
+    if (op == op::transfer) {
+        int recipient = in_msg_body~load_uint(256);
+        int amount = in_msg_body~load_coins();
+        (int balance, cell allowances) = get_user(sender);
+
+        throw_unless(error::not_enough_balance, balance >= amount);
+
+        (int recipient_balance, cell recipient_allowances) = get_user(recipient);
+        set_user(sender, balance - amount, allowances);
+        set_user(recipient, recipient_balance + amount, recipient_allowances);
+    }
+    
+    elseif (op == op::transfer_from) {
+        int from = in_msg_body~load_uint(256);
+        int recipient = in_msg_body~load_uint(256);
+        int amount = in_msg_body~load_coins();
+        (int balance, cell allowances) = get_user(from);
+        int allowance = allowances.get_allowance(sender);
+        
+        throw_unless(error::not_enough_balance, balance >= amount);
+        throw_unless(error::not_enough_allowance, allowance >= amount);
+
+        (int recipient_balance, cell recipient_allowances) = get_user(recipient);
+        allowances.udict_set(256, sender, begin_cell().store_coins(allowance - amount).end_cell().begin_parse());
+        set_user(from, balance - amount, allowances);
+        set_user(recipient, recipient_balance + amount, recipient_allowances);
+    }
+    
+    elseif (op == op::approve) {
+        int spender = in_msg_body~load_uint(256);
+        int amount = in_msg_body~load_coins();
+        (int balance, cell allowances) = get_user(sender);
+
+        allowances.udict_set(256, spender, begin_cell().store_coins(amount).end_cell().begin_parse());
+        set_user(sender, balance, allowances);
+    }
+
+    else {
+        return ();
+    }
+
+    save_data();
 }
