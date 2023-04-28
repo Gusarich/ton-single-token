@@ -1,6 +1,7 @@
 transfer#38e6413f recipient:uint256 amount:Coins = InternalMsgBody;
 transfer_from#56385563 from:uint256 recipient:uint256 amount:Coins = InternalMsgBody;
 approve#14b4e83e spender:uint256 amount:Coins = InternalMsgBody;
+mint#1bcc40ab recipient:uint256 amount:Coins = InternalMsgBody;
 
 transfer_notification#8e77c97a query_id:uint64 from:uint256 amount:Coins = InternalMsgBody;
 apporval_notification#8ed3c35a query_id:uint64 owner:uint256 amount:Coins = InternalMsgBody;
