@@ -55,7 +55,7 @@ global int admin;
 }
 
 () set_user(int address, int balance, cell allowances) impure {
-    users.udict_set(256, address, begin_cell()
+    users~udict_set(256, address, begin_cell()
         .store_coins(balance)
         .store_dict(allowances)
     .end_cell().begin_parse());
@@ -120,7 +120,7 @@ global int admin;
         throw_unless(error::not_enough_allowance, allowance >= amount);
 
         (int recipient_balance, cell recipient_allowances) = get_user(recipient);
-        allowances.udict_set(256, sender, begin_cell().store_coins(allowance - amount).end_cell().begin_parse());
+        allowances~udict_set(256, sender, begin_cell().store_coins(allowance - amount).end_cell().begin_parse());
         set_user(from, balance - amount, allowances);
         set_user(recipient, recipient_balance + amount, recipient_allowances);
 
@@ -142,7 +142,7 @@ global int admin;
         int amount = in_msg_body~load_coins();
         (int balance, cell allowances) = get_user(sender);
 
-        allowances.udict_set(256, spender, begin_cell().store_coins(amount).end_cell().begin_parse());
+        allowances~udict_set(256, spender, begin_cell().store_coins(amount).end_cell().begin_parse());
         set_user(sender, balance, allowances);
 
         send_raw_message(begin_cell()
@@ -215,20 +215,14 @@ global int admin;
     return (name.begin_parse(), symbol.begin_parse(), decimals, total_supply);
 }
 
-(int) get_balance_of(slice address) method_id {
+(int) get_balance_of(int address) method_id {
     load_data();
-    (int workchain, int account_id) = parse_std_addr(address);
-    throw_unless(error::wrong_workchain, workchain == 0);
-    (int balance, cell allowances) = get_user(account_id);
+    (int balance, cell allowances) = get_user(address);
     return balance;
 }
 
-(int) get_allowance_of(slice owner, slice spender) method_id {
+(int) get_allowance_of(int owner, int spender) method_id {
     load_data();
-    (int workchain, int account_id) = parse_std_addr(owner);
-    throw_unless(error::wrong_workchain, workchain == 0);
-    (int spender_workchain, int spender_account_id) = parse_std_addr(spender);
-    throw_unless(error::wrong_workchain, spender_workchain == 0);
-    (int balance, cell allowances) = get_user(account_id);
-    return get_allowance(allowances, spender_account_id);
+    (int balance, cell allowances) = get_user(owner);
+    return get_allowance(allowances, spender);
 }

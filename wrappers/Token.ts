@@ -134,15 +134,15 @@ export class Token implements Contract {
 
     async getBalanceOf(provider: ContractProvider, address: Address) {
         return (
-            await provider.get('get_balance_of', [{ type: 'slice', cell: beginCell().storeAddress(address).endCell() }])
+            await provider.get('get_balance_of', [{ type: 'int', value: BigInt('0x' + address.hash.toString('hex')) }])
         ).stack.readBigNumber();
     }
 
     async getAllowanceOf(provider: ContractProvider, owner: Address, spender: Address) {
         return (
             await provider.get('get_allowance_of', [
-                { type: 'slice', cell: beginCell().storeAddress(owner).endCell() },
-                { type: 'slice', cell: beginCell().storeAddress(spender).endCell() },
+                { type: 'int', value: BigInt('0x' + owner.hash.toString('hex')) },
+                { type: 'int', value: BigInt('0x' + spender.hash.toString('hex')) },
             ])
         ).stack.readBigNumber();
     }
